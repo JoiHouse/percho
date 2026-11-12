@@ -2,7 +2,7 @@ import type { SessionMeta } from "@percho/shared";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useT } from "../../i18n";
 import { PinIcon } from "../icons";
-import { sessionTitle, useSessionStatus } from "../session/session-status";
+import { sessionTitle, useActiveSubagentCount, useSessionStatus } from "../session/session-status";
 import type { MenuAnchor } from "../ui/place-menu";
 
 /** 行尾状态点：待审批琥珀（静态）/ 工作中墨色（呼吸，节拍与顶栏头像同一套）/ 完成未读绿；空闲无点。
@@ -35,6 +35,7 @@ export function SessionRow({
 }) {
 	const t = useT();
 	const status = useSessionStatus(session.sessionId);
+	const activeSubagents = useActiveSubagentCount(session.sessionId);
 	const title = sessionTitle(session, t("projects.untitled"), t("projects.daily"));
 	return (
 		<button
@@ -67,6 +68,15 @@ export function SessionRow({
 					className={`mr-0.5 h-[7px] w-[7px] shrink-0 rounded-full ${DOT_CLASS[status]}`}
 					aria-hidden="true"
 				/>
+			)}
+			{activeSubagents > 0 && (
+				<span
+					className="-ml-1 mr-0.5 shrink-0 font-mono text-ui-11 tabular-nums text-ink-dim"
+					title={t("sidebar.activeSubagents", { n: activeSubagents })}
+					aria-label={t("sidebar.activeSubagents", { n: activeSubagents })}
+				>
+					{activeSubagents}
+				</span>
 			)}
 		</button>
 	);

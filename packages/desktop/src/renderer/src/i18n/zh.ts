@@ -603,6 +603,7 @@ export const zh = {
 		deleteDesc: "该会话的记录与文件会被永久删除，无法恢复。",
 	},
 	sidebar: {
+		activeSubagents: "{n} 个子代理进行中",
 		title: "导航",
 		newSession: "新会话",
 		newSessionInProject: "在 {name} 中新建会话",

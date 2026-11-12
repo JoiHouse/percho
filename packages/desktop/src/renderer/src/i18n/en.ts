@@ -627,6 +627,7 @@ export const en: Messages = {
 		deleteDesc: "Its transcript and session file will be deleted permanently. This cannot be undone.",
 	},
 	sidebar: {
+		activeSubagents: "{n} subagents running",
 		title: "Navigation",
 		newSession: "New session",
 		newSessionInProject: "New session in {name}",
