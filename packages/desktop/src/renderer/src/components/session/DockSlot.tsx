@@ -1,6 +1,8 @@
 import { useTranscriptStore } from "../../stores/transcript";
 import { Composer } from "../composer/Composer";
 import { ApprovalDock } from "./ApprovalDock";
+import { ExtensionSubagentRunsPanel } from "./ExtensionSubagentRunsPanel";
+import { ExtensionWidgetPanel } from "./ExtensionWidgetPanel";
 import { InteractionDock } from "./InteractionDock";
 
 /**
@@ -16,13 +18,23 @@ export function DockSlot({ sessionId, hideComposer }: { sessionId: string | null
 	const dialog = useTranscriptStore((s) =>
 		sessionId ? s.bySession[sessionId]?.pendingDialogs[0] : undefined,
 	);
-	if (permission) return <ApprovalDock sessionId={sessionId} />;
-	if (dialog) return <InteractionDock sessionId={sessionId} />;
-	if (hideComposer) return null;
-	// relative z-20：× 删除键 -top-1.5 伸出容器顶 → 落入消息区，须盖过 MessageList 的 z-10
+	if (hideComposer && !permission && !dialog) return null;
+	// 扩展 widget（setWidget）跟随输入区：审批/对话框上场时仍保留，便于对照面板作答
 	return (
-		<div className="approval-composer-enter relative z-20">
-			<Composer />
-		</div>
+		<>
+			<ExtensionSubagentRunsPanel sessionId={sessionId} />
+			<ExtensionWidgetPanel sessionId={sessionId} placement="aboveEditor" />
+			{permission ? (
+				<ApprovalDock sessionId={sessionId} />
+			) : dialog ? (
+				<InteractionDock sessionId={sessionId} />
+			) : (
+				// relative z-20：× 删除键 -top-1.5 伸出容器顶 → 落入消息区，须盖过 MessageList 的 z-10
+				<div className="approval-composer-enter relative z-20">
+					<Composer />
+				</div>
+			)}
+			<ExtensionWidgetPanel sessionId={sessionId} placement="belowEditor" />
+		</>
 	);
 }

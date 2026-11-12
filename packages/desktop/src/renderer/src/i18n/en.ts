@@ -453,6 +453,16 @@ export const en: Messages = {
 			failed: "Failed",
 			mutex: "Detected subagent extension {path}; built-in subagent took over: {tools}",
 		},
+		extensionWidget: {
+			collapse: "Collapse extension panel",
+			expand: "Expand extension panel",
+		},
+		extensionRuns: {
+			title: "Extension subagents",
+			count: "{active} active / {total} total",
+			collapse: "Collapse extension subagents",
+			expand: "Expand extension subagents",
+		},
 	},
 	// 与 zh.ts 同形；markstream 内置 UI 文案（Preview/Source/Copy/Close…）由这里覆盖
 	mermaid: {

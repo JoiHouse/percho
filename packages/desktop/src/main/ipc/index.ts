@@ -115,6 +115,8 @@ export function registerIpc(
 	forward(backend.onExtensionDialogResolved.bind(backend), IpcChannels.ExtensionDialogResolved);
 	forward(backend.onExtensionNotify.bind(backend), IpcChannels.ExtensionNotify);
 	forward(backend.onExtensionEditorText.bind(backend), IpcChannels.ExtensionEditorText);
+	forward(backend.onExtensionWidgets.bind(backend), IpcChannels.ExtensionWidgets);
+	forward(backend.onExtensionSubagentRuns.bind(backend), IpcChannels.ExtensionSubagentRuns);
 	forward(backend.onLoginEvent.bind(backend), IpcChannels.SettingsLoginEvent);
 	forward(backend.onMcpServersChanged.bind(backend), IpcChannels.McpServersChanged);
 	// 频道订阅快照变化（spec D1）：payload 自带 generation+revision，renderer 自行判新旧

@@ -7,6 +7,7 @@ import {
 } from "@percho/shared";
 import { create } from "zustand";
 import { getExecutionApi } from "../environment-api";
+import { useExtensionSubagentRunsStore, useExtensionWidgetsStore } from "./extension-widgets";
 import { createEventBoundary } from "./session-event-boundary";
 import { useTranscriptStore } from "./transcript";
 
@@ -92,6 +93,8 @@ function install(environment: EnvironmentRef, snapshot: PendingInteractions): vo
 		useTranscriptStore.getState().addPermission(request.sessionId, request);
 	for (const request of snapshot.dialogs)
 		useTranscriptStore.getState().addExtensionDialog(request.sessionId, request);
+	if (snapshot.widgets) useExtensionWidgetsStore.getState().install(belongs, snapshot.widgets);
+	if (snapshot.subagentRuns) useExtensionSubagentRunsStore.getState().install(belongs, snapshot.subagentRuns);
 	useInteractionStore.setState((state) => ({
 		trustRequests: [...state.trustRequests.filter((request) => !belongs(request.id)), ...snapshot.trust],
 		ready: { ...state.ready, [key]: true },

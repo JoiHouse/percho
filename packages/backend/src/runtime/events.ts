@@ -21,6 +21,8 @@ export function bindExecutionEvents(
 		onExtensionDialogResolved: (handler) => backend.onExtensionDialogResolved(handler),
 		onExtensionNotify: (handler) => backend.onExtensionNotify(handler),
 		onExtensionEditorText: (handler) => backend.onExtensionEditorText(handler),
+		onExtensionWidgets: (handler) => backend.onExtensionWidgets(handler),
+		onExtensionSubagentRuns: (handler) => backend.onExtensionSubagentRuns(handler),
 		onProviderLoginEvent: (handler) => backend.onLoginEvent(handler),
 		onMcpServersChanged: (handler) => backend.onMcpServersChanged(handler),
 		onChannelSubscriptionsChanged: (handler) => backend.onChannelSubscriptionsChanged(handler),

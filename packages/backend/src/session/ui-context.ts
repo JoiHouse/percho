@@ -1,5 +1,6 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionWidgetPlacement } from "@percho/shared";
 import type { ExtensionDialogHost } from "./extension-dialog-host";
 
 /**
@@ -14,7 +15,7 @@ import type { ExtensionDialogHost } from "./extension-dialog-host";
  * 色盘为静态中性色：桌面端不消费 ANSI 输出，无需跟随 GUI 亮暗主题；构造参数受 TS 约束，
  * SDK 升级新增必填色时 typecheck 会报错提醒补齐。Theme 构造纯内存计算，无环境依赖。
  */
-const EXTENSION_THEME = new Theme(
+export const EXTENSION_THEME = new Theme(
 	{
 		accent: "#7aa2f7",
 		border: "#3b4261",
@@ -107,6 +108,13 @@ export interface UiContextDeps {
 	onNotify?: (message: string, level: "info" | "warning" | "error", source: string) => void;
 	/** setEditorText/pasteToEditor → Composer 草稿（缺省丢弃）；source 同上 */
 	onEditorText?: (text: string, source: string) => void;
+	/** setWidget → widget 桥（缺省 = no-op）；content 原样透传（字符串行或 TUI 组件工厂） */
+	onWidget?: (
+		key: string,
+		content: unknown,
+		placement: ExtensionWidgetPlacement | undefined,
+		source: string,
+	) => void;
 }
 
 /**
@@ -143,7 +151,13 @@ export function makeUiContext(deps: UiContextDeps = {}): ExtensionUIContext {
 		setWorkingVisible: () => {},
 		setWorkingIndicator: () => {},
 		setHiddenThinkingLabel: () => {},
-		setWidget: () => {},
+		setWidget: ((key: string, content: unknown, options?: { placement?: ExtensionWidgetPlacement }) =>
+			deps.onWidget?.(
+				key,
+				content,
+				options?.placement,
+				extensionNameFromStack(new Error().stack ?? ""),
+			)) as ExtensionUIContext["setWidget"],
 		setFooter: () => {},
 		setHeader: () => {},
 		setTitle: () => {},

@@ -434,6 +434,16 @@ export const zh = {
 			failed: "失败",
 			mutex: "检测到 subagent 扩展 {path}，其工具已由内置 subagent 接管：{tools}",
 		},
+		extensionWidget: {
+			collapse: "收起扩展面板",
+			expand: "展开扩展面板",
+		},
+		extensionRuns: {
+			title: "扩展子代理",
+			count: "{active} 进行中 / 共 {total}",
+			collapse: "收起扩展子代理",
+			expand: "展开扩展子代理",
+		},
 	},
 	// mermaid 图表卡（components/chat/MermaidBlock.tsx）：renderFailed = 失败态卡片标题，
 	// 其余同时覆盖 markstream 内置 UI 文案（Preview/Source/Copy/Close 等，走它自己的全局字典）

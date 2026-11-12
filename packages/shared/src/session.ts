@@ -569,4 +569,8 @@ export interface PendingInteractions {
 	permissions: PermissionRequest[];
 	dialogs: import("./extension-dialog").ExtensionDialogRequest[];
 	trust: TrustRequest[];
+	/** 扩展 widget 快照（渲染端重载/重连时补齐；旧远端运行包可能缺省） */
+	widgets?: import("./extension-dialog").ExtensionWidgetsEvent[];
+	/** 扩展子代理运行快照（同上） */
+	subagentRuns?: import("./extension-dialog").ExtensionSubagentRunsEvent[];
 }

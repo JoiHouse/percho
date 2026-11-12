@@ -32,6 +32,8 @@ import type {
 	ExtensionDialogRespond,
 	ExtensionEditorTextEvent,
 	ExtensionNotifyEvent,
+	ExtensionSubagentRunsEvent,
+	ExtensionWidgetsEvent,
 	ImageInput,
 	LoadedResources,
 	LoginEventPayload,
@@ -68,6 +70,7 @@ import {
 	extractTodos,
 	formatSkillCommand,
 	isModelVisible,
+	PERCHO_SUBAGENT_RUNS_ENV,
 	parseComposerDocument,
 	parseExpandedSkillInvocation,
 	type QueuedMessages,
@@ -104,6 +107,7 @@ import {
 } from "./session/composer-input";
 import { slimBulkyEvent, slimMessageUpdate } from "./session/event-slim";
 import { ExtensionDialogHost } from "./session/extension-dialog-host";
+import { ExternalSubagentRuns, makeExternalSubagentBridgeExtension } from "./session/external-subagents";
 import { SessionFileOperations } from "./session/file-operations";
 import { type SelectedHistory, SessionHistoryPager } from "./session/history-pager";
 import { SessionHydrationGate } from "./session/hydration-gate";
@@ -142,7 +146,8 @@ import { StreamGuard } from "./session/stream-guard";
 import { measureSessionSwitch, recordSessionSwitchPayload } from "./session/switch-diagnostics";
 import { TraceRecorder } from "./session/trace";
 import { SessionTraces } from "./session/traces";
-import { makeUiContext } from "./session/ui-context";
+import { EXTENSION_THEME, makeUiContext } from "./session/ui-context";
+import { ExtensionWidgetHost, type WidgetContent } from "./session/widget-host";
 import { CacheWarmingSettings } from "./settings/cache-warming";
 import {
 	codemodeSessionOptions,
@@ -523,6 +528,10 @@ export class PiBackend {
 				...new Set([...this.registry.list().map((entry) => entry.dialogs), ...this.constructionDialogs]),
 			].flatMap((host) => host.listPending()),
 			trust: this.trustGate.listPending(),
+			widgets: [...this.widgetHosts].map(([sessionId, host]) => ({ sessionId, widgets: host.snapshot() })),
+			subagentRuns: this.externalSubagents
+				.parentIds()
+				.map((sessionId) => ({ sessionId, runs: this.externalSubagents.snapshot(sessionId) })),
 		};
 	}
 	private readonly loginEmitter = new Emitter<LoginEventPayload>();
@@ -530,6 +539,22 @@ export class PiBackend {
 	private readonly extensionDialogResolvedEmitter = new Emitter<ExtensionDialogResolved>();
 	private readonly extensionNotifyEmitter = new Emitter<ExtensionNotifyEvent>();
 	private readonly extensionEditorTextEmitter = new Emitter<ExtensionEditorTextEvent>();
+	/** 扩展 setWidget 桥：每会话一个宿主，随 afterSessionDispose 释放 */
+	private readonly extensionWidgetsEmitter = new Emitter<ExtensionWidgetsEvent>();
+	private readonly widgetHosts = new Map<string, ExtensionWidgetHost>();
+	/** 扩展子代理运行登记（percho:subagent-runs 协议）：父会话运行行 + 活子会话实时检视 */
+	private readonly extensionSubagentRunsEmitter = new Emitter<ExtensionSubagentRunsEvent>();
+	private readonly externalSubagents = new ExternalSubagentRuns({
+		isParentAlive: (id) => {
+			const entry = this.registry.get(id);
+			return !this.stopping && !!entry && !entry.readOnly;
+		},
+		registerRun: (id, handle) => this.registerSubagentRun(id, handle),
+		unregisterRun: (id) => this.unregisterSubagentRun(id),
+		onEvent: (id, event, abort) => this.emitSubagentEvent(id, event, abort),
+		publish: (sessionId, runs) => this.extensionSubagentRunsEmitter.emit({ sessionId, runs }),
+		onError: (message, error) => log.warn(message, error),
+	});
 	/** MCP 运行态变化（spec §4.8.1：面板刷新用） */
 	private readonly mcpServersChangedEmitter = new Emitter<McpServersChangedPayload>();
 	/** 最近一次聚合的「server → 工具（带只读标记）」（面板初次打开时不必等下一个 turn） */
@@ -743,6 +768,8 @@ export class PiBackend {
 	private readonly projectLoader: ProjectResourceLoader;
 
 	constructor(private readonly options: PiBackendOptions = {}) {
+		// 声明支持扩展子代理登记协议：扩展据此把子会话落盘到 sessions-subagents 并广播运行
+		process.env[PERCHO_SUBAGENT_RUNS_ENV] = "1";
 		this.media = options.sessionMediaStore ?? new SessionMediaStore(join(getAgentDir(), "media"));
 		this.packages = new PackageAdmin({
 			reloadIdleSessions: (cwd) => this.reloadIdleSessions(cwd),
@@ -793,19 +820,8 @@ export class PiBackend {
 					gate,
 					getPermissionMode,
 					traces: this.traces,
-					registerRun: (id, handle) => {
-						this.assertRunning();
-						if (this.deletingSessions.has(id)) throw new Error("Session deletion is in progress");
-						this.runningSubagents.set(id, handle);
-					},
-					unregisterRun: (id) => {
-						this.runningSubagents.delete(id);
-						if (!this.registry.has(id)) {
-							this.liveTranscripts.delete(id);
-							this.streamGuard.cleanup(id);
-							this.eventRates.delete(id);
-						}
-					},
+					registerRun: (id, handle) => this.registerSubagentRun(id, handle),
+					unregisterRun: (id) => this.unregisterSubagentRun(id),
 					onEvent: (sessionId, event, abort) => this.emitSubagentEvent(sessionId, event, abort),
 				}),
 			);
@@ -908,6 +924,8 @@ export class PiBackend {
 				},
 			}),
 		);
+		// 扩展子代理运行登记：只在主会话的事件总线上收听协议频道（父会话 ID 由消息携带并校验）
+		factories.push(makeExternalSubagentBridgeExtension((raw) => this.externalSubagents.handle(raw)));
 		// todo-reminder 最后：compaction 后恢复注入的任务列表不被上游折叠
 		factories.push(makeTodoReminderExtension());
 		// MCP 运行态聚合（spec §4.8.1）：三个时机聚合 `mcp__<server>__<tool>`，集合变化才发事件给面板
@@ -931,6 +949,13 @@ export class PiBackend {
 		});
 		dialogs.bind(sessionId, cwd);
 		this.constructionDialogs.add(dialogs);
+		this.widgetHosts.get(sessionId)?.dispose();
+		const widgets = new ExtensionWidgetHost({
+			theme: EXTENSION_THEME,
+			publish: (views) => this.extensionWidgetsEmitter.emit({ sessionId, widgets: views }),
+			onError: (key, error) => log.warn("extension widget render failed", sessionId, key, error),
+		});
+		this.widgetHosts.set(sessionId, widgets);
 		const recordExtensionError = (err: ExtensionError): void => {
 			if (err.event === "session_shutdown") this.shutdownErrors.get(session)?.push(err);
 			log.error("extension error", sessionId, err);
@@ -953,12 +978,16 @@ export class PiBackend {
 						this.extensionNotifyEmitter.emit({ sessionId, extensionPath: source, message, level });
 					},
 					onEditorText: (text, source) => this.extensionEditorTextEmitter.emit({ sessionId, text, source }),
+					onWidget: (key, content, placement, source) =>
+						widgets.set(key, content as WidgetContent, placement, source),
 				}),
 				mode: "rpc",
 				onError: recordExtensionError,
 			});
 		} catch (error) {
 			dialogs.dispose();
+			widgets.dispose();
+			if (this.widgetHosts.get(sessionId) === widgets) this.widgetHosts.delete(sessionId);
 			throw error;
 		} finally {
 			this.constructionDialogs.delete(dialogs);
@@ -981,6 +1010,21 @@ export class PiBackend {
 
 	setViewedSubagent(sessionId?: string): void {
 		this.viewedSubagentId = sessionId;
+	}
+
+	private registerSubagentRun(id: string, handle: SubagentRunHandle): void {
+		this.assertRunning();
+		if (this.deletingSessions.has(id)) throw new Error("Session deletion is in progress");
+		this.runningSubagents.set(id, handle);
+	}
+
+	private unregisterSubagentRun(id: string): void {
+		this.runningSubagents.delete(id);
+		if (!this.registry.has(id)) {
+			this.liveTranscripts.delete(id);
+			this.streamGuard.cleanup(id);
+			this.eventRates.delete(id);
+		}
 	}
 
 	private emitSubagentEvent(sessionId: string, event: SessionEvent, abort: () => Promise<void>): void {
@@ -1746,6 +1790,15 @@ export class PiBackend {
 		const failures: unknown[] = [];
 		try {
 			if (!entry.readOnly) this.channelSubs.dispose(id);
+		} catch (error) {
+			failures.push(error);
+		}
+		try {
+			if (!entry.readOnly) {
+				this.widgetHosts.get(id)?.dispose();
+				this.widgetHosts.delete(id);
+				this.externalSubagents.disposeParent(id);
+			}
 		} catch (error) {
 			failures.push(error);
 		}
@@ -2959,6 +3012,14 @@ export class PiBackend {
 		return this.extensionEditorTextEmitter.subscribe(handler);
 	}
 
+	onExtensionWidgets(handler: (event: ExtensionWidgetsEvent) => void): () => void {
+		return this.extensionWidgetsEmitter.subscribe(handler);
+	}
+
+	onExtensionSubagentRuns(handler: (event: ExtensionSubagentRunsEvent) => void): () => void {
+		return this.extensionSubagentRunsEmitter.subscribe(handler);
+	}
+
 	/** renderer 应答扩展对话框（requestId 含 sessionId 全局唯一；非本宿主实例静默忽略，仿 respondPermission 遍历） */
 	respondExtensionDialog(requestId: string, answer: ExtensionDialogRespond): void {
 		for (const dialogs of this.constructionDialogs) dialogs.respond(requestId, answer);
@@ -3091,6 +3152,11 @@ export class PiBackend {
 		this.extensionDialogResolvedEmitter.clear();
 		this.extensionNotifyEmitter.clear();
 		this.extensionEditorTextEmitter.clear();
+		for (const host of this.widgetHosts.values()) host.dispose();
+		this.widgetHosts.clear();
+		this.extensionWidgetsEmitter.clear();
+		this.externalSubagents.dispose();
+		this.extensionSubagentRunsEmitter.clear();
 		this.trustGate.dispose();
 		this.login.dispose();
 		this.traces.disposeAll();

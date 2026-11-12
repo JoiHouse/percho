@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { subscribeExecutionEnvironments } from "../environment-api";
 import { useDraftStore, withDraftText } from "../stores/drafts";
 import { EventConflator } from "../stores/event-conflator";
+import { useExtensionSubagentRunsStore, useExtensionWidgetsStore } from "../stores/extension-widgets";
 import { acceptInteractionEvent, useInteractionStore } from "../stores/interactions";
 import { useProjectsStore } from "../stores/projects";
 import { acceptSessionEvent, onSessionBoundaryReset } from "../stores/session-event-boundary";
@@ -77,6 +78,12 @@ export function useSessionEventBridge({
 				useDraftStore.getState().updateDraft(event.sessionId, (d) => withDraftText(d, event.text));
 				useTranscriptStore.getState().markExtensionPrefill(event.sessionId, event.source ?? "");
 			});
+			const offWidgets = pi.onExtensionWidgets((event) => {
+				useExtensionWidgetsStore.getState().setWidgets(event.sessionId, event.widgets);
+			});
+			const offExtensionRuns = pi.onExtensionSubagentRuns((event) => {
+				useExtensionSubagentRunsStore.getState().setRuns(event.sessionId, event.runs);
+			});
 			const offTrust = pi.onTrustRequest((req) =>
 				acceptInteractionEvent(environment, req.revision, req, () => onTrustRequest(req)),
 			);
@@ -93,6 +100,8 @@ export function useSessionEventBridge({
 				offDialogResolved();
 				offNotify();
 				offEditorText();
+				offWidgets();
+				offExtensionRuns();
 				offTrust();
 				offTrustResolved();
 			};

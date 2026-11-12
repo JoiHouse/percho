@@ -191,6 +191,16 @@ function resultFor(method: string, value: unknown, environment: EnvironmentRef):
 				permissions: snapshot.permissions.map((item) => eventFor("onPermissionRequest", item, environment)),
 				dialogs: snapshot.dialogs.map((item) => eventFor("onExtensionDialogRequest", item, environment)),
 				trust: snapshot.trust.map((item) => eventFor("onTrustRequest", item, environment)),
+				...(snapshot.widgets
+					? { widgets: snapshot.widgets.map((item) => eventFor("onExtensionWidgets", item, environment)) }
+					: {}),
+				...(snapshot.subagentRuns
+					? {
+							subagentRuns: snapshot.subagentRuns.map((item) =>
+								eventFor("onExtensionSubagentRuns", item, environment),
+							),
+						}
+					: {}),
 			};
 		}
 		case "getLoadedSessions":
@@ -260,6 +270,11 @@ function eventFor(method: string, value: unknown, environment: EnvironmentRef): 
 	}
 	if (["onTrustRequest", "onExtensionDialogRequest"].includes(method) && typeof next.cwd === "string")
 		next.cwd = environmentEntityKey(environment, next.cwd);
+	if (method === "onExtensionSubagentRuns" && Array.isArray(next.runs)) {
+		next.runs = (next.runs as import("@percho/shared").SubagentRunUi[]).map((run) =>
+			subagentRun(run, environment),
+		);
+	}
 	if (method === "onEvent" && record(next.event)) {
 		const event = next.event;
 		if (event.type === "tool_execution_update")

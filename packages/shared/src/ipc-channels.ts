@@ -9,6 +9,8 @@ import type {
 	ExtensionDialogRespond,
 	ExtensionEditorTextEvent,
 	ExtensionNotifyEvent,
+	ExtensionSubagentRunsEvent,
+	ExtensionWidgetsEvent,
 } from "./extension-dialog";
 import type { LanStatus } from "./lan";
 import type { McpConfigListResult, McpMutationResult, McpServersChangedPayload, McpUpsertInput } from "./mcp";
@@ -1086,6 +1088,11 @@ export const SUBSCRIPTION_TABLE = {
 	onExtensionEditorText: subscription<ExtensionEditorTextEvent>()(
 		"ExtensionEditorText",
 		"pi:extension-editor-text",
+	),
+	onExtensionWidgets: subscription<ExtensionWidgetsEvent>()("ExtensionWidgets", "pi:extension-widgets"),
+	onExtensionSubagentRuns: subscription<ExtensionSubagentRunsEvent>()(
+		"ExtensionSubagentRuns",
+		"pi:extension-subagent-runs",
 	),
 } as const;
 
