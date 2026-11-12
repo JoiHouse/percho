@@ -23,6 +23,27 @@
 
 ---
 
+> [!NOTE]
+> **This is an unofficial fork of [Jaxton07/percho](https://github.com/Jaxton07/percho) (branch `local-gui-bridge`)**, based on v0.6.8. It only adds the GUI features below; everything else matches upstream.
+>
+> **What's new**
+> - **Extension panels**: panels registered with `ctx.ui.setWidget` (e.g. the pi-plans task tree) render above the composer, collapsible, refreshed every second.
+> - **Extension subagents**: extensions can hand their own sub-sessions to Percho via the `percho:subagent-runs` protocol. Each one is listed above the composer with status, phase, model and tokens; click to open a **live** read-only transcript and stop it individually.
+> - **Sidebar status**: a session whose own turn is idle but whose subagents (built-in or extension) are still running shows the working dot plus the number of active subagents.
+>
+> **One-click install (macOS)**
+>
+> | Chip | Download |
+> | --- | --- |
+> | Apple Silicon | [percho-mac-arm64.dmg](https://github.com/JoiHouse/percho/releases/latest/download/percho-mac-arm64.dmg) |
+> | Intel | [percho-mac-x64.dmg](https://github.com/JoiHouse/percho/releases/latest/download/percho-mac-x64.dmg) (not tested on an Intel Mac) |
+>
+> Open the dmg and drag Percho into Applications (this replaces an installed official Percho; your data in `~/.percho/agent` is kept). The build is ad-hoc signed; if macOS blocks the first launch, use **System Settings → Privacy & Security → Open Anyway**.
+>
+> **See pi-plans workers** (optional): install the patched [JoiHouse/pi-plans](https://github.com/JoiHouse/pi-plans/tree/local-gui-bridge). Quit Percho, edit `~/.percho/agent/settings.json` and replace `"npm:pi-plans"` in `packages` with `"git:github.com/JoiHouse/pi-plans@local-gui-bridge"` (or add that line if you never installed pi-plans), then reopen Percho; it is fetched automatically.
+>
+> **Limitations**: macOS packages only; SSH remote sessions still use the official 0.6.8 remote runtime and do not show the new panels yet; the in-app "update available" link points to upstream, and installing the official build removes this fork's changes.
+
 ## Demo
 
 ![Percho new-session page](docs/assets/img/chat_001.png)

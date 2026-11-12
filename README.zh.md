@@ -23,6 +23,27 @@
 
 ---
 
+> [!NOTE]
+> **这是 [Jaxton07/percho](https://github.com/Jaxton07/percho) 的非官方 fork（分支 `local-gui-bridge`）**，基于 v0.6.8，只增加下面这些 GUI 能力，其余与上游一致。
+>
+> **新增功能**
+> - **扩展面板**：扩展调用 `ctx.ui.setWidget` 注册的面板（例如 pi-plans 的任务树）会显示在输入框上方，可折叠，每秒刷新。
+> - **扩展子代理**：扩展可以通过 `percho:subagent-runs` 协议把自己创建的子会话交给 Percho。输入框上方会列出每个子代理的状态、阶段、模型和 token，点击进入**实时**只读对话页，可单独停止。
+> - **侧边栏状态**：主会话空闲、但子代理（内置 subagent 或扩展子代理）仍在运行时，会话行显示「工作中」圆点和进行中的数量。
+>
+> **一键安装（macOS）**
+>
+> | 芯片 | 下载 |
+> | --- | --- |
+> | Apple Silicon | [percho-mac-arm64.dmg](https://github.com/JoiHouse/percho/releases/latest/download/percho-mac-arm64.dmg) |
+> | Intel | [percho-mac-x64.dmg](https://github.com/JoiHouse/percho/releases/latest/download/percho-mac-x64.dmg)（未在 Intel Mac 上实测） |
+>
+> 打开 dmg，把 Percho 拖进「应用程序」（会替换已安装的官方 Percho，数据目录 `~/.percho/agent` 不变）。包为 ad-hoc 签名，首次打开如被拦截：**系统设置 → 隐私与安全性 → 仍要打开**。
+>
+> **配合 pi-plans 查看 worker**（可选）：安装改版 [JoiHouse/pi-plans](https://github.com/JoiHouse/pi-plans/tree/local-gui-bridge)。退出 Percho，编辑 `~/.percho/agent/settings.json`，把 `packages` 里的 `"npm:pi-plans"` 换成 `"git:github.com/JoiHouse/pi-plans@local-gui-bridge"`（没有装过 pi-plans 就直接加这一行），再打开 Percho，会自动拉取。
+>
+> **限制**：仅提供 macOS 包；SSH 远端会话仍使用官方 0.6.8 远端运行包，暂不显示新增面板；应用内「有新版本」指向的是上游官方版本，安装官方版会覆盖本 fork 的改动。
+
 ## 演示
 
 ![Percho 新会话页](docs/assets/img/chat_001.png)
